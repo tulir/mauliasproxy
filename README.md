@@ -3,7 +3,7 @@ This is a simple room alias proxy that can respond to the [federation alias
 query endpoint]. The purpose is to allow creating room addresses with vanity
 domains without having to run a full-blown Matrix homeserver.
 
-Discussion room: [`#maunium:maunium.net`](https://matrix.to/#/#maunium:maunium.net)
+Discussion room: [#maunium:mau.dev](https://matrix.to/#/#maunium:mau.dev)
 
 [federation alias query endpoint]: https://matrix.org/docs/spec/server_server/latest#get-matrix-federation-v1-query-directory
 
