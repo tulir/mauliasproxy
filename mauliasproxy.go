@@ -74,6 +74,7 @@ func resolveAlias(alias string) (respData RoomDirectoryResponse) {
 }
 
 func queryDirectory(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
 	alias := req.URL.Query().Get("room_alias")
 	target, ok := cfg.Aliases[alias]
 	if !ok {
@@ -98,6 +99,7 @@ func queryDirectory(w http.ResponseWriter, req *http.Request) {
 }
 
 func serverWellKnown(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(WellKnownResponse{ServerName: cfg.ServerWellKnown})
 }
 
