@@ -1,0 +1,11 @@
+# Homeserver URL to resolve aliases with.
+homeserver_url: https://matrix-client.matrix.org
+# Alias mapping. The key is the local alias, the value is the alias that's resolved to get the room ID and server list.
+aliases:
+    "#matrix:example.com": "#matrix:matrix.org"
+# How long (in seconds) should resolved room IDs and server lists be cached?
+cache_ttl: 3600
+# IP and port to listen on
+listen: :8008
+# What address to serve in the /.well-known/matrix/server file
+server_well_known: example.com:443
