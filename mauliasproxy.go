@@ -7,14 +7,22 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
+type RegexRule struct {
+	Pattern     *regexp.Regexp
+	Replacement string
+}
+
 type Config struct {
 	HomeserverURL string            `yaml:"homeserver_url"`
 	Aliases       map[string]string `yaml:"aliases"`
+	RawPatterns   yaml.MapSlice     `yaml:"patterns"`
+	Patterns      []RegexRule       `yaml:"-"`
 	CacheTTL      int64             `yaml:"cache_ttl"`
 
 	Listen          string `yaml:"listen"`
@@ -73,10 +81,23 @@ func resolveAlias(alias string) (respData RoomDirectoryResponse) {
 	return
 }
 
+func findAliasTarget(alias string) (string, bool) {
+	target, ok := cfg.Aliases[alias]
+	if ok {
+		return target, true
+	}
+	for _, rule := range cfg.Patterns {
+		if rule.Pattern.MatchString(alias) {
+			return rule.Pattern.ReplaceAllString(alias, rule.Replacement), true
+		}
+	}
+	return "", false
+}
+
 func queryDirectory(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	alias := req.URL.Query().Get("room_alias")
-	target, ok := cfg.Aliases[alias]
+	target, ok := findAliasTarget(alias)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
@@ -114,10 +135,23 @@ func main() {
 		_, _ = fmt.Fprintln(os.Stderr, "Failed to parse config.yaml:", err)
 		os.Exit(3)
 	}
+	cfg.Patterns = make([]RegexRule, len(cfg.RawPatterns))
+	for index, rawPattern := range cfg.RawPatterns {
+		match := rawPattern.Key.(string)
+		compiled, err := regexp.Compile(match)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to compile pattern '%s': %v", match, err)
+			os.Exit(4)
+		}
+		cfg.Patterns[index] = RegexRule{
+			Pattern:     compiled,
+			Replacement: rawPattern.Value.(string),
+		}
+	}
 	homeserverURL, err = url.Parse(cfg.HomeserverURL)
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "Failed to parse homeserver URL:", err)
-		os.Exit(4)
+		os.Exit(5)
 	}
 
 	http.HandleFunc("/_matrix/federation/v1/query/directory", queryDirectory)

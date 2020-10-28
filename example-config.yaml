@@ -3,6 +3,11 @@ homeserver_url: https://matrix-client.matrix.org
 # Alias mapping. The key is the local alias, the value is the alias that's resolved to get the room ID and server list.
 aliases:
     "#matrix:example.com": "#matrix:matrix.org"
+# Pattern mappings. The key is a regular expression (RE2 syntax) and the value is a replacement.
+# If an alias doesn't match any of the static mappings, each pattern here is tested in order. The first matching regex
+# is used to replace the input alias with the replacement here, and the result is resolved to get the room ID.
+patterns:
+    "^#(.+):freenode.net$": "#freenode_#$1:matrix.org"
 # How long (in seconds) should resolved room IDs and server lists be cached?
 cache_ttl: 3600
 # IP and port to listen on
