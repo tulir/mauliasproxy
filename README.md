@@ -5,7 +5,7 @@ domains without having to run a full-blown Matrix homeserver.
 
 Discussion room: [#maunium:mau.dev](https://matrix.to/#/#maunium:mau.dev)
 
-[federation alias query endpoint]: https://matrix.org/docs/spec/server_server/latest#get-matrix-federation-v1-query-directory
+[federation alias query endpoint]: https://spec.matrix.org/v1.1/server-server-api/#get_matrixfederationv1querydirectory
 
 ## Setup
 You can either build the Go program yourself (just `git clone` + `go build`),
