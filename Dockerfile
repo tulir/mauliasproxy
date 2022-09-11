@@ -1,8 +1,8 @@
 FROM golang:1-alpine AS builder
 
 RUN apk add --no-cache ca-certificates
-WORKDIR /build/lwnfeed
-COPY . /build/lwnfeed
+WORKDIR /build/mauliasproxy
+COPY . /build/mauliasproxy
 ENV CGO_ENABLED=0
 RUN go build -o /usr/bin/mauliasproxy
 
