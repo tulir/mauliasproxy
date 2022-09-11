@@ -59,8 +59,8 @@ func resolveAlias(alias string) (respData RoomDirectoryResponse) {
 		Scheme:  homeserverURL.Scheme,
 		User:    homeserverURL.User,
 		Host:    homeserverURL.Host,
-		Path:    fmt.Sprintf("/_matrix/client/r0/directory/room/%s", alias),
-		RawPath: fmt.Sprintf("/_matrix/client/r0/directory/room/%s", url.PathEscape(alias)),
+		Path:    fmt.Sprintf("/_matrix/client/v3/directory/room/%s", alias),
+		RawPath: fmt.Sprintf("/_matrix/client/v3/directory/room/%s", url.PathEscape(alias)),
 	}).String())
 	if err != nil {
 		fmt.Printf("Failed to resolve %s: %v\n", alias, err)
