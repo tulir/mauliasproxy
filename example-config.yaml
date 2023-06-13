@@ -22,5 +22,6 @@ server_keys:
         # The server name to respond with. Optional, defaults to host.
         server_name: example.com
         # The signing key to use in Synapse format (`ed25519 keyid base64key`)
+        # Can be set to `env:NAME` to read the value from `NAME` in the environment.
         # A random key can be generated with `mauliasproxy genkey`
         signing_key: ed25519 0 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
