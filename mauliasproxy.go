@@ -260,6 +260,9 @@ func main() {
 			delete(cfg.ServerKeys, host)
 			continue
 		}
+		if strings.HasPrefix(key.SigningKey, "env:") {
+			key.SigningKey = os.Getenv(strings.ToUpper(strings.TrimPrefix(key.SigningKey, "env:")))
+		}
 		parts := strings.Split(key.SigningKey, " ")
 		if len(parts) != 3 || parts[0] != "ed25519" {
 			_, _ = fmt.Fprintln(os.Stderr, "Invalid signing key for", key.ServerName)
