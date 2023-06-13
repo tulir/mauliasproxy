@@ -20,5 +20,6 @@ on the alias domains to mauliasproxy.
 
 Optionally, you may also proxy:
 * `/.well-known/matrix/server` to have mauliasproxy handle delegation to 443.
-* `/_matrix/federation/v1/version` ~~and `/_matrix/key/v2/server` to make the federation tester pass~~.
+* `/_matrix/federation/v1/version` and `/_matrix/key/v2/server` to make the federation tester pass.
+  * To enable the key server endpoint, fill the `server_keys` section in the config.
 * `/_matrix/federation/*` to respond with a proper `M_NOT_FOUND` code to make old Synapses work.

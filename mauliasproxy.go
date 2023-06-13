@@ -1,12 +1,16 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -26,6 +30,17 @@ type Config struct {
 
 	Listen          string `yaml:"listen"`
 	ServerWellKnown string `yaml:"server_well_known"`
+
+	ServerKeys map[string]*ServerKey `yaml:"server_keys"`
+}
+
+type ServerKey struct {
+	ServerName string `yaml:"server_name"`
+	SigningKey string `yaml:"signing_key"`
+
+	signingKeyID     string             `yaml:"-"`
+	signingKeyPubB64 string             `yaml:"-"`
+	signingKeyPriv   ed25519.PrivateKey `yaml:"-"`
 }
 
 type WellKnownResponse struct {
@@ -136,8 +151,78 @@ func serverVersion(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+type ServerKeyResponse struct {
+	OldVerifyKeys map[string]any               `json:"old_verify_keys"`
+	ServerName    string                       `json:"server_name"`
+	Signatures    map[string]map[string]string `json:"signatures,omitempty"`
+	ValidUntilTS  int64                        `json:"valid_until_ts"`
+	VerifyKeys    map[string]map[string]string `json:"verify_keys"`
+}
+
+func generateServerKey(domain string) *ServerKeyResponse {
+	keys, ok := cfg.ServerKeys[domain]
+	if !ok {
+		keys, ok = cfg.ServerKeys["default"]
+		if !ok {
+			return nil
+		}
+	}
+	var resp ServerKeyResponse
+	if keys.ServerName == "" {
+		resp.ServerName = domain
+	} else {
+		resp.ServerName = keys.ServerName
+	}
+	resp.OldVerifyKeys = map[string]any{}
+	resp.ValidUntilTS = time.Now().Add(time.Hour * 24).UnixMilli()
+	resp.VerifyKeys = map[string]map[string]string{
+		keys.signingKeyID: {
+			"key": keys.signingKeyPubB64,
+		},
+	}
+	payload, _ := json.Marshal(&resp)
+	resp.Signatures = map[string]map[string]string{
+		keys.ServerName: {
+			keys.signingKeyID: base64.RawURLEncoding.EncodeToString(ed25519.Sign(keys.signingKeyPriv, payload)),
+		},
+	}
+	return &resp
+}
+
+func serverKey(w http.ResponseWriter, r *http.Request) {
+	r.URL.Host = r.Host
+	resp := generateServerKey(r.URL.Hostname())
+	if resp == nil {
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
+			Code:    MNotFound,
+			Message: "No server keys found",
+		})
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&resp)
+}
+
 func queryKey(w http.ResponseWriter, r *http.Request) {
-	notFound(w, r)
+	serverName := strings.TrimPrefix(r.URL.Path, "/_matrix/key/v2/query/")
+	if strings.ContainsRune(serverName, '/') {
+		notFound(w, r)
+		return
+	}
+	resp := generateServerKey(serverName)
+	if resp == nil {
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
+			Code:    MNotFound,
+			Message: "No server keys found",
+		})
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&resp)
 }
 
 func notFound(w http.ResponseWriter, _ *http.Request) {
@@ -150,6 +235,14 @@ func notFound(w http.ResponseWriter, _ *http.Request) {
 }
 
 func main() {
+	if len(os.Args) > 0 && os.Args[len(os.Args)-1] == "genkey" {
+		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("ed25519", base64.RawURLEncoding.EncodeToString(pub[:4]), base64.RawStdEncoding.EncodeToString(priv.Seed()))
+		os.Exit(0)
+	}
 	data, err := os.ReadFile("config.yaml")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "Failed to read config.yaml:", err)
@@ -159,6 +252,29 @@ func main() {
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "Failed to parse config.yaml:", err)
 		os.Exit(3)
+	}
+	for host, key := range cfg.ServerKeys {
+		if key.SigningKey == "ed25519 0 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" {
+			_, _ = fmt.Fprintln(os.Stderr, "Ignoring example server key")
+			delete(cfg.ServerKeys, host)
+			continue
+		}
+		parts := strings.Split(key.SigningKey, " ")
+		if len(parts) != 3 || parts[0] != "ed25519" {
+			_, _ = fmt.Fprintln(os.Stderr, "Invalid signing key for", key.ServerName)
+			os.Exit(4)
+		}
+		decoded, err := base64.RawStdEncoding.DecodeString(parts[2])
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Invalid signing key for %s: %v\n", key.ServerName, err)
+			os.Exit(4)
+		}
+		if key.ServerName == "" && host != "default" {
+			key.ServerName = host
+		}
+		key.signingKeyID = "ed25519:" + parts[1]
+		key.signingKeyPriv = ed25519.NewKeyFromSeed(decoded)
+		key.signingKeyPubB64 = base64.RawStdEncoding.EncodeToString(key.signingKeyPriv.Public().(ed25519.PublicKey))
 	}
 	cfg.Patterns = make([]RegexRule, len(cfg.RawPatterns))
 	for index, rawPattern := range cfg.RawPatterns {
@@ -182,8 +298,10 @@ func main() {
 	http.HandleFunc("/_matrix/federation/v1/query/directory", queryDirectory)
 	http.HandleFunc("/.well-known/matrix/server", serverWellKnown)
 	http.HandleFunc("/_matrix/federation/v1/version", serverVersion)
-	http.HandleFunc("/_matrix/key/v2/server", queryKey)
-	http.HandleFunc("/_matrix/key/v2/query/", queryKey)
+	if len(cfg.ServerKeys) > 0 {
+		http.HandleFunc("/_matrix/key/v2/server", serverKey)
+		//http.HandleFunc("/_matrix/key/v2/query/", queryKey)
+	}
 	http.HandleFunc("/", notFound)
 
 	fmt.Println("Listening on", cfg.Listen)

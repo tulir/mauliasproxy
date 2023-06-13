@@ -14,3 +14,13 @@ cache_ttl: 3600
 listen: :8008
 # What address to serve in the /.well-known/matrix/server file
 server_well_known: example.com:443
+# Optionally, server names and signing keys to respond to /_matrix/key/v2/server
+server_keys:
+    # The key is the Host header that mauliasproxy should expect.
+    # `default` is used for everything that doesn't match another key.
+    default:
+        # The server name to respond with. Optional, defaults to host.
+        server_name: example.com
+        # The signing key to use in Synapse format (`ed25519 keyid base64key`)
+        # A random key can be generated with `mauliasproxy genkey`
+        signing_key: ed25519 0 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
