@@ -145,7 +145,7 @@ func serverVersion(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"server": map[string]any{
 			"name":    "mauliasproxy",
-			"version": "0.2.0",
+			"version": "1.1.0",
 			"🐈‍⬛":     "https://github.com/tulir/mauliasproxy",
 		},
 	})
