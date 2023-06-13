@@ -182,7 +182,7 @@ func generateServerKey(domain string) *ServerKeyResponse {
 	}
 	payload, _ := json.Marshal(&resp)
 	resp.Signatures = map[string]map[string]string{
-		keys.ServerName: {
+		resp.ServerName: {
 			keys.signingKeyID: base64.RawURLEncoding.EncodeToString(ed25519.Sign(keys.signingKeyPriv, payload)),
 		},
 	}
