@@ -191,18 +191,18 @@ func generateServerKey(domain string) *ServerKeyResponse {
 
 func serverKey(w http.ResponseWriter, r *http.Request) {
 	r.URL.Host = r.Host
+	w.Header().Add("Content-Type", "application/json")
 	resp := generateServerKey(r.URL.Hostname())
 	if resp == nil {
-		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Code:    MNotFound,
 			Message: "No server keys found",
 		})
 		return
+	} else {
+		_ = json.NewEncoder(w).Encode(&resp)
 	}
-	w.Header().Add("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(&resp)
 }
 
 func queryKey(w http.ResponseWriter, r *http.Request) {
@@ -211,18 +211,19 @@ func queryKey(w http.ResponseWriter, r *http.Request) {
 		notFound(w, r)
 		return
 	}
+	w.Header().Add("Content-Type", "application/json")
 	resp := generateServerKey(serverName)
 	if resp == nil {
-		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Code:    MNotFound,
 			Message: "No server keys found",
 		})
-		return
+	} else {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"server_keys": []any{resp},
+		})
 	}
-	w.Header().Add("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(&resp)
 }
 
 func notFound(w http.ResponseWriter, _ *http.Request) {
