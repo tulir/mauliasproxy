@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,6 +36,8 @@ type ErrorResponse struct {
 	Code    string `json:"errcode"`
 	Message string `json:"error"`
 }
+
+const MNotFound = "M_NOT_FOUND"
 
 type RoomDirectoryResponse struct {
 	RoomID  string   `json:"room_id"`
@@ -101,7 +102,7 @@ func queryDirectory(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
-			Code:    "M_NOT_FOUND",
+			Code:    MNotFound,
 			Message: fmt.Sprintf("Room alias %s not found", alias),
 		})
 		return
@@ -110,7 +111,7 @@ func queryDirectory(w http.ResponseWriter, req *http.Request) {
 	if !resp.Exists {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
-			Code:    "M_NOT_FOUND",
+			Code:    MNotFound,
 			Message: fmt.Sprintf("Failed to resolve %s", target),
 		})
 		return
@@ -119,13 +120,36 @@ func queryDirectory(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func serverWellKnown(w http.ResponseWriter, req *http.Request) {
+func serverWellKnown(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(WellKnownResponse{ServerName: cfg.ServerWellKnown})
 }
 
+func serverVersion(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"server": map[string]any{
+			"name":    "mauliasproxy",
+			"version": "0.2.0",
+			"🐈‍⬛":     "https://github.com/tulir/mauliasproxy",
+		},
+	})
+}
+
+func queryKey(w http.ResponseWriter, r *http.Request) {
+	notFound(w, r)
+}
+
+func notFound(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
+		Code:    MNotFound,
+		Message: "This is a mauliasproxy instance that doesn't handle anything other than federation alias queries",
+	})
+}
+
 func main() {
-	data, err := ioutil.ReadFile("config.yaml")
+	data, err := os.ReadFile("config.yaml")
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "Failed to read config.yaml:", err)
 		os.Exit(2)
@@ -156,6 +180,10 @@ func main() {
 
 	http.HandleFunc("/_matrix/federation/v1/query/directory", queryDirectory)
 	http.HandleFunc("/.well-known/matrix/server", serverWellKnown)
+	http.HandleFunc("/_matrix/federation/v1/version", serverVersion)
+	http.HandleFunc("/_matrix/key/v2/server", queryKey)
+	http.HandleFunc("/_matrix/key/v2/query/", queryKey)
+	http.HandleFunc("/", notFound)
 
 	fmt.Println("Listening on", cfg.Listen)
 	err = http.ListenAndServe(cfg.Listen, nil)
