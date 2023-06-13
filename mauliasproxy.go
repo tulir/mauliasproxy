@@ -141,6 +141,7 @@ func queryKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func notFound(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 	_ = json.NewEncoder(w).Encode(ErrorResponse{
 		Code:    MNotFound,
