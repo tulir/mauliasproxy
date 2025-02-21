@@ -53,6 +53,7 @@ type ErrorResponse struct {
 }
 
 const MNotFound = "M_NOT_FOUND"
+const MUnrecognized = "M_UNRECOGNIZED"
 
 type RoomDirectoryResponse struct {
 	RoomID  string   `json:"room_id"`
@@ -230,7 +231,7 @@ func notFound(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 	_ = json.NewEncoder(w).Encode(ErrorResponse{
-		Code:    MNotFound,
+		Code:    MUnrecognized,
 		Message: "This is a mauliasproxy instance that doesn't handle anything other than federation alias queries",
 	})
 }
