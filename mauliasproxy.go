@@ -22,11 +22,12 @@ type RegexRule struct {
 }
 
 type Config struct {
-	HomeserverURL string            `yaml:"homeserver_url"`
-	Aliases       map[string]string `yaml:"aliases"`
-	RawPatterns   yaml.MapSlice     `yaml:"patterns"`
-	Patterns      []RegexRule       `yaml:"-"`
-	CacheTTL      int64             `yaml:"cache_ttl"`
+	HomeserverURL      string              `yaml:"homeserver_url"`
+	Aliases            map[string]string   `yaml:"aliases"`
+	RawPatterns        yaml.MapSlice       `yaml:"patterns"`
+	ServerListOverride map[string][]string `yaml:"server_list_override"`
+	Patterns           []RegexRule         `yaml:"-"`
+	CacheTTL           int64               `yaml:"cache_ttl"`
 
 	Listen          string `yaml:"listen"`
 	ServerWellKnown string `yaml:"server_well_known"`
@@ -92,6 +93,9 @@ func resolveAlias(alias string) (respData RoomDirectoryResponse) {
 	if existingData.Exists && !respData.Exists {
 		fmt.Printf("Using expired cached result for %s as new resolving failed\n", alias)
 		return existingData
+	}
+	if serverOverride, ok := cfg.ServerListOverride[alias]; ok {
+		respData.Servers = serverOverride
 	}
 	respData.FetchedAt = time.Now().Unix()
 	cache[alias] = respData
